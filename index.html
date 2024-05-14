@@ -1,0 +1,219 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Team Balancer</title>
+    <link rel="stylesheet" href="css/foundation.css" />
+    <script src="js/vendor/modernizr.js"></script>
+    <script src="js/vendor/query-string.js"></script>
+  </head>
+  <body>
+       
+    <div class="row">
+      <div class="large-12 columns">
+        <div class="panel">
+          
+          <fieldset>
+            <legend>Players</legend>
+            <div class="row" id="playerList"></div>
+          </fieldset>
+          
+          <fieldset>
+            <legend>Teams</legend>
+            <div class="row" id="teamList"></div>
+          </fieldset>
+          <a href="#" class="small radius success button right" id="btnCreateTeams">Create Teams</a>
+          <br>
+          </br>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="large-12 columns" id="output"></div>
+    </div>
+    
+    <script src="js/vendor/jquery.js"></script>
+    <script src="js/foundation.min.js"></script>
+    <script>
+      
+      $(document).foundation();
+
+      // Global variables
+      var players = [], teams = [];
+      var playerCount = 0, teamCount = 0;
+
+      // Functions
+      function addPlayer(num, playerName, playerSkill) {
+        var p, currentPlayerName;
+        num = num || 1;
+        playerSkill = playerSkill || 3;
+        for(p=0; p<num; p++) {
+          playerCount++;
+          if(playerName) {
+            currentPlayerName = playerName;
+          } else {
+            currentPlayerName = "";
+          }
+          $('#playerList').append('<div class="medium-6 columns"><input type="text" id="name' + playerCount + '" class="name" value="' + currentPlayerName + '" /></div><div class="medium-6 columns"><select id="skill' + playerCount + '" class="skill"><option value="1">&#9733;</option><option value="2">&#9733;&#9733;</option><option value="3">&#9733;&#9733;&#9733;</option><option value="4">&#9733;&#9733;&#9733;&#9733;</option><option value="5">&#9733;&#9733;&#9733;&#9733;&#9733;</option></select></div>');
+          $('#skill' + playerCount + ' option[value=' + playerSkill + ']').attr("selected", "selected");
+        }
+      }
+
+      function addTeam(num, teamName) {
+        var t, currentTeamName;
+        num = num || 1;
+        for(t=0; t<num; t++) {
+          teamCount++;
+          if(teamName) {
+            currentTeamName = teamName;
+          } else {
+            if (teamCount == 1) {
+              currentTeamName = "no bibs";
+            }
+            else {
+              currentTeamName = "bibs";
+            }
+          }
+          $('#teamList').append('<div class="medium-6 columns end"><input type="text" class="team" value="' + currentTeamName + '" id="team' + teamCount + '" /></div>');
+        }
+      }
+
+      function Player(name, skill) {
+        this.name = name;
+        this.skill = skill;
+      }
+
+      function Team(name, skill, index) {
+        this.name = name;
+        this.skill = skill;
+        this.index = index;
+      }
+
+      function createTeams() {
+        var i, p, numTeams, numPlayers, memberList, members, teamName, totalSkill;
+
+        // Reset
+        players = [];
+        teams = [];
+        $('#output').html('');
+
+        if(teamCount > playerCount) {
+          $('#output').append('<div class="alert-box alert radius">There are more teams than players</div>');
+        }
+
+        // Put all teams into an array
+        $(".team").each(function(index) {
+          teams.push(new Team($(this).val(), 0, index));
+        });
+
+        // Put all players into another array
+        $('.name').each(function(index) {
+          players.push(new Player($(this).val(), parseInt($('#skill' + (index+1)).val(), 10)));
+        });
+        
+        // Sort the arrays by skill
+        function sortAll() {
+          players.sort(function(a, b) {
+            if(a.skill < b.skill) { return 1; }
+            if(a.skill > b.skill) { return -1;}
+            return 0;
+          });
+          teams.sort(function(a, b) {
+            if(a.skill > b.skill) { return 1; }
+            if(a.skill < b.skill) { return -1;}
+            return 0;
+          });
+        }
+
+        sortAll();
+
+        // Put one player into each team, starting with the most-skilled
+        for(i=0, numTeams=teams.length; i<numTeams; i++) {
+          teams[i].members = []; // Create a 'members' array for each team
+          teams[i].members.push(players[0]);
+          teams[i].skill += players[0].skill; // Add to the team's skill counter
+          players.shift(); // Remove the most-skilled player from the array and shift the rest up
+        }
+
+        // Move the rest of the players into teams
+        $(players).each(function() {
+          sortAll();
+          // Make sure the difference in team size is not any greater than 1
+          i = 0;
+          while((teams[i].members.length - teams[i+1].members.length) > 1) {
+            i++;
+          }
+          teams[i].members.push(players[0]);
+          teams[i].skill += players[0].skill;
+          players.shift();
+        });
+
+        // Now sort the teams by their index, so it matches the input order
+        teams.sort(function(a, b) {
+          return a.index - b.index;
+        });
+
+        // Generate output HTML
+        $(teams).each(function(i) {
+          teamName = '<div class="large-2 medium-2 columns"><strong>' + teams[i].name + '</strong></div>';
+          memberList = [];
+          for(p=0, numPlayers=teams[i].members.length; p<numPlayers; p++) {
+            memberList.push(teams[i].members[p].name);
+          }
+          members = '<div class="large-9 medium-9 columns">' + memberList.join(', ') + '</div>';
+          totalSkill = '<div class="large-1 medium-1 columns" style="font-size:2.5em">' + teams[i].skill + '</div>';
+          $('#output').append('<div class="row" style="border-bottom:1px solid #CCC; margin:0.5em; padding:0.5em">' + teamName + members + totalSkill + '</div>');
+        });
+      }
+
+      function createURL() {
+        document.location = "?" + queryString.stringify({
+          p: $(".name").map(function() { return this.value; }).get().join(),
+          s: $(".skill option:selected").map(function() { return this.value; }).get().join(),
+          t: $(".team").map(function() { return this.value; }).get().join()
+        });
+      }
+
+      // Parse query string, if present
+      if(location.search) {
+        var urlParams = queryString.parse(location.search);
+        // With each query string parameter, split its comma-separated value into an array
+        $.each(urlParams, function(index) {
+          urlParams[index] = urlParams[index].split(',');
+        });
+
+        // If there's a player (p) parameter, add its values to the Players list
+        if(urlParams.p) {
+          var i;
+          for(i=0; i<urlParams.p.length; i++) {
+            if(urlParams.s && urlParams.s[i] && 1 <= urlParams.s[i] && urlParams.s[i] <= 5) {
+              addPlayer(1, urlParams.p[i], urlParams.s[i] || '');
+            } else {
+              addPlayer(1, urlParams.p[i], '');
+            }
+          }
+        }
+
+        // If there's a team (t) parameter, add its values to the Teams list
+        if(urlParams.t) {
+          var i;
+          for(i=0; i<urlParams.t.length; i++) {
+            addTeam(1, urlParams.t[i]);
+          }
+        }
+
+        createTeams();
+
+      } else {
+        addPlayer(16);
+        addTeam(2);
+      }
+
+      // Event Handlers
+      $('#btnCreateTeams').click(function() { createTeams(); createURL(); });
+      
+    </script>
+  </body>
+</html>
